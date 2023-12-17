@@ -33,9 +33,6 @@ fn main() {
         table.EncodingCount
     );
 
-    // Note(rob): If the user passes in a file, then we can use that to get the
-    // disassembly, otherwise we use the EXAMPLE_DISASSEMBLY.
-
     let args: Vec<String> = env::args().collect();
 
     let file_buf = if args.len() > 1 {
@@ -65,27 +62,52 @@ fn main() {
     while offset < buf.len() as u32 {
         let decoded = decode_8086_instruction(&buf[offset as usize..]);
         if let Some(decoded) = decoded {
-            if decoded.Op != operation_type_Op_None {
-                offset += decoded.Size;
-                let mnemonic = mnemonic_from_operation_type(decoded.Op);
+            if decoded.Op == operation_type_Op_None {
+                println!("Unrecognised instruction");
+                break;
+            }
 
-                if mnemonic == "mov" {
-                    let dest = decoded.Operands[0];
-                    let from = decoded.Operands[1];
+            offset += decoded.Size;
 
-                    if from.Type == operand_type_Operand_Immediate {
-                        let reg =
-                            unsafe { register_name_from_operand(dest.__bindgen_anon_1.Register) };
-                        let immediate = unsafe { from.__bindgen_anon_1.Immediate };
-                        *registers.get_mut(reg).unwrap() = immediate.Value;
-                    }
+            if decoded.Op == operation_type_Op_mov {
+                let dest = decoded.Operands[0];
+                let from = decoded.Operands[1];
+
+                if from.Type == operand_type_Operand_Immediate {
+                    let reg = unsafe { register_name_from_operand(dest.__bindgen_anon_1.Register) };
+                    let immediate = unsafe { from.__bindgen_anon_1.Immediate };
+                    *registers.get_mut(reg).unwrap() = immediate.Value;
+                }
+
+                if from.Type == operand_type_Operand_Register {
+                    let dest_reg =
+                        unsafe { register_name_from_operand(dest.__bindgen_anon_1.Register) };
+                    let source_reg =
+                        unsafe { register_name_from_operand(from.__bindgen_anon_1.Register) };
+                    let source_reg_value = registers.get(source_reg).unwrap();
+                    *registers.get_mut(dest_reg).unwrap() = source_reg_value.clone();
                 }
             }
-        } else {
-            println!("Unrecognised instruction");
-            break;
         }
     }
 
-    println!("registers: {:?}", registers);
+    println!(
+        "Final registers:
+        ax: {:?}
+        bx: {:?}
+        cx: {:?}
+        dx: {:?}
+        sp: {:?}
+        bp: {:?}
+        si: {:?}
+        di: {:?}",
+        registers.get("ax"),
+        registers.get("bx"),
+        registers.get("cx"),
+        registers.get("dx"),
+        registers.get("sp"),
+        registers.get("bp"),
+        registers.get("si"),
+        registers.get("di")
+    );
 }
