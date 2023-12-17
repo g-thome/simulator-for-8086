@@ -58,6 +58,11 @@ fn main() {
         ("di", 0),
     ]);
 
+    // [0] = zero
+    // [1] = parity
+    // [2] = sign
+    let mut flags = [false, false, false];
+
     let mut offset = 0u32;
     while offset < buf.len() as u32 {
         let decoded = decode_8086_instruction(&buf[offset as usize..]);
@@ -88,7 +93,130 @@ fn main() {
                     *registers.get_mut(dest_reg).unwrap() = source_reg_value.clone();
                 }
             }
+
+            if decoded.Op == operation_type_Op_add {
+                let dest = decoded.Operands[0];
+                let source = decoded.Operands[1];
+
+                if source.Type == operand_type_Operand_Immediate {
+                    let reg_name =
+                        unsafe { register_name_from_operand(dest.__bindgen_anon_1.Register) };
+                    let immediate = unsafe { source.__bindgen_anon_1.Immediate };
+
+                    let reg = registers.get(reg_name).unwrap();
+                    let value = reg + immediate.Value;
+
+                    flags[0] = if value == 0 { true } else { false };
+                    flags[1] = if value % 2 == 0 { true } else { false };
+                    flags[2] = if value < 0 { true } else { false };
+
+                    *registers.get_mut(reg_name).unwrap() = value;
+                }
+
+                if source.Type == operand_type_Operand_Register {
+                    let dest_reg_name =
+                        unsafe { register_name_from_operand(dest.__bindgen_anon_1.Register) };
+                    let source_reg_name =
+                        unsafe { register_name_from_operand(source.__bindgen_anon_1.Register) };
+
+                    let source_reg = registers.get(source_reg_name).unwrap();
+                    let dest_reg = registers.get(dest_reg_name).unwrap();
+
+                    let value = source_reg + dest_reg;
+
+                    flags[0] = if value == 0 { true } else { false };
+                    flags[1] = if value % 2 == 0 { true } else { false };
+                    flags[2] = if value < 0 { true } else { false };
+
+                    *registers.get_mut(dest_reg_name).unwrap() = value;
+                }
+            }
+
+            if decoded.Op == operation_type_Op_sub {
+                let dest = decoded.Operands[0];
+                let source = decoded.Operands[1];
+
+                if source.Type == operand_type_Operand_Immediate {
+                    let reg_name =
+                        unsafe { register_name_from_operand(dest.__bindgen_anon_1.Register) };
+                    let immediate = unsafe { source.__bindgen_anon_1.Immediate };
+
+                    let reg = registers.get(reg_name).unwrap();
+                    let value = reg - immediate.Value;
+
+                    flags[0] = if value == 0 { true } else { false };
+                    flags[1] = if value % 2 == 0 { true } else { false };
+                    flags[2] = if value < 0 { true } else { false };
+
+                    *registers.get_mut(reg_name).unwrap() = value;
+                }
+
+                if source.Type == operand_type_Operand_Register {
+                    let dest_reg_name =
+                        unsafe { register_name_from_operand(dest.__bindgen_anon_1.Register) };
+                    let source_reg_name =
+                        unsafe { register_name_from_operand(source.__bindgen_anon_1.Register) };
+
+                    let source_reg = registers.get(source_reg_name).unwrap();
+                    let dest_reg = registers.get(dest_reg_name).unwrap();
+
+                    let value = source_reg - dest_reg;
+
+                    flags[0] = if value == 0 { true } else { false };
+                    flags[1] = if value % 2 == 0 { true } else { false };
+                    flags[2] = if value < 0 { true } else { false };
+
+                    *registers.get_mut(dest_reg_name).unwrap() = value;
+                }
+            }
+
+            if decoded.Op == operation_type_Op_cmp {
+                let dest = decoded.Operands[0];
+                let source = decoded.Operands[1];
+
+                if source.Type == operand_type_Operand_Immediate {
+                    let reg_name =
+                        unsafe { register_name_from_operand(dest.__bindgen_anon_1.Register) };
+                    let immediate = unsafe { source.__bindgen_anon_1.Immediate };
+
+                    let reg = registers.get(reg_name).unwrap();
+                    let value = reg - immediate.Value;
+
+                    flags[0] = if value == 0 { true } else { false };
+                    flags[1] = if value % 2 == 0 { true } else { false };
+                    flags[2] = if value < 0 { true } else { false };
+                }
+
+                if source.Type == operand_type_Operand_Register {
+                    let dest_reg_name =
+                        unsafe { register_name_from_operand(dest.__bindgen_anon_1.Register) };
+                    let source_reg_name =
+                        unsafe { register_name_from_operand(source.__bindgen_anon_1.Register) };
+
+                    let source_reg = registers.get(source_reg_name).unwrap();
+                    let dest_reg = registers.get(dest_reg_name).unwrap();
+
+                    let value = source_reg - dest_reg;
+
+                    flags[0] = if value == 0 { true } else { false };
+                    flags[1] = if value % 2 == 0 { true } else { false };
+                    flags[2] = if value < 0 { true } else { false };
+                }
+            }
         }
+    }
+
+    let mut flagstring = String::new();
+    if flags[0] {
+        flagstring += "Z"
+    }
+
+    if flags[1] {
+        flagstring += "P"
+    }
+
+    if flags[2] {
+        flagstring += "S"
     }
 
     println!(
@@ -110,4 +238,6 @@ fn main() {
         registers.get("si"),
         registers.get("di")
     );
+
+    println!("Flags: {}", flagstring);
 }
